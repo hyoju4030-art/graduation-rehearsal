@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>졸업공연 리허설 현황</title>
+<style>
+:root{--bg:#f3f8fc;--ink:#233344;--muted:#718397;--blue:#83b8df;--line:#dce8f1;--white:#fff;--mint:#dff2ec;--lav:#eee9fb;--peach:#fff0e6}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif}
+.wrap{max-width:760px;margin:auto;padding:24px 16px 44px}.hero{background:linear-gradient(135deg,#d9ecfa,#edf4ff 60%,#e8f4f0);border:1px solid #d8e8f4;border-radius:24px;padding:24px 20px;margin-bottom:18px}.eyebrow{font-size:12px;letter-spacing:.12em;color:#6485a0;font-weight:800}.hero h1{font-size:25px;margin:9px 0 7px}.hero p{margin:0;color:#60778c;font-size:14px;line-height:1.55}.notice{background:#fff8e9;border:1px solid #f0dfb8;color:#806b3f;padding:12px 14px;border-radius:14px;font-size:13px;line-height:1.5;margin:14px 0 18px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px}.stat{background:#fff;border:1px solid var(--line);border-radius:15px;padding:12px 8px;text-align:center}.stat b{display:block;font-size:21px}.stat span{font-size:11px;color:var(--muted)}
+.rooms{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px}.room{border-radius:17px;padding:13px;background:#fff;border:1px solid var(--line)}.room:nth-child(1){background:#f1f7ff}.room:nth-child(2){background:#f2faf7}.room:nth-child(3){background:#f7f3ff}.room:nth-child(4){background:#fff5ee}.room h3{font-size:13px;margin:0 0 8px}.room strong{font-size:22px}.room small{display:block;color:var(--muted);margin-top:2px}
+.sectionhead{display:flex;align-items:center;justify-content:space-between;margin:20px 2px 10px}.sectionhead h2{font-size:17px;margin:0}.sectionhead span{font-size:12px;color:var(--muted)}.team{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:8px}.num{width:40px;height:40px;display:grid;place-items:center;border-radius:13px;background:#eaf3fb;font-weight:800;color:#527b9b;flex:none}.teaminfo{flex:1;min-width:0}.teaminfo b{display:block;font-size:14px}.teaminfo small{color:var(--muted);font-size:11px}.team select{max-width:155px;width:48%;padding:10px 8px;border:1px solid #d7e3ed;border-radius:11px;background:#fbfdff;color:#30475b;font-size:12px}
+.actions{display:flex;gap:8px;margin-top:16px}.actions button{flex:1;border:1px solid var(--line);background:#fff;border-radius:12px;padding:12px;color:#526c82;font-weight:700}.foot{text-align:center;color:#9aabba;font-size:11px;margin-top:22px}
+@media(max-width:390px){.team{gap:8px}.team select{font-size:11px}.num{width:36px;height:36px}.stats{gap:6px}.stat b{font-size:19px}}
+</style></head><body><main class="wrap">
+<header class="hero"><div class="eyebrow">GRADUATION PERFORMANCE · LIVE BOARD</div><h1>리허설 대기 현황</h1><p>팀별 현재 위치를 확인하고 다음 순서를 준비해 주세요.</p></header>
+<div class="notice">현재는 화면 확인용 버전입니다. 이 기기에서 변경한 내용만 저장되며, 여러 스태프 간 실시간 공유는 데이터베이스 연결 후 활성화됩니다.</div>
+<section class="stats" id="stats"></section><section class="rooms" id="rooms"></section>
+<div class="sectionhead"><h2>팀별 위치</h2><span>1팀–14팀</span></div><div id="teams"></div>
+<div class="actions"><button id="reset">전체 위치 초기화</button><button id="refresh">화면 새로고침</button></div><div class="foot">Graduation Rehearsal · Staff Board</div>
+</main><script>
+const places=['1차 대기실','2차 대기실','3차 대기실','122호 (무대)','공연 완료'];
+let positions=JSON.parse(localStorage.getItem('rehearsal-positions')||'null')||Array(14).fill(0);
+function save(){localStorage.setItem('rehearsal-positions',JSON.stringify(positions));render()}
+function render(){const counts=places.map((_,i)=>positions.filter(x=>x===i).length);document.getElementById('stats').innerHTML=`<div class="stat"><b>14</b><span>전체 팀</span></div><div class="stat"><b>${counts[0]+counts[1]+counts[2]}</b><span>대기 중</span></div><div class="stat"><b>${counts[3]}</b><span>무대 준비</span></div><div class="stat"><b>${counts[4]}</b><span>공연 완료</span></div>`;
+document.getElementById('rooms').innerHTML=places.map((p,i)=>`<div class="room"><h3>${p}</h3><strong>${counts[i]}팀</strong><small>${positions.map((v,n)=>v===i?`${n+1}팀`:null).filter(Boolean).join(' · ')||'현재 배정된 팀 없음'}</small></div>`).join('');
+document.getElementById('teams').innerHTML=positions.map((v,i)=>`<div class="team"><div class="num">${i+1}</div><div class="teaminfo"><b>${i+1}팀</b><small>현재 위치 선택</small></div><select aria-label="${i+1}팀 위치" data-team="${i}">${places.map((p,j)=>`<option value="${j}" ${v===j?'selected':''}>${p}</option>`).join('')}</select></div>`).join('');document.querySelectorAll('select[data-team]').forEach(s=>s.addEventListener('change',e=>{positions[Number(e.target.dataset.team)]=Number(e.target.value);save()}))}
+document.getElementById('reset').addEventListener('click',()=>{if(confirm('모든 팀을 1차 대기실로 이동할까요?')){positions=Array(14).fill(0);save()}});document.getElementById('refresh').addEventListener('click',render);render();
+</script></body></html>
