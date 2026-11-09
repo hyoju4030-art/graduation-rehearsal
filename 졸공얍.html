@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#dceeff">
+<title>졸업공연 리허설 현황</title>
+<style>
+:root{--blue:#dceeff;--ink:#263447;--muted:#718096;--line:#e4ebf2;--white:#fff;--accent:#709fc9}
+*{box-sizing:border-box}body{margin:0;background:#f5f8fc;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+main{max-width:760px;margin:auto;padding:24px 16px 48px}.hero{padding:25px 22px;border-radius:24px;background:linear-gradient(135deg,#e8f4ff,#f4edff);margin-bottom:18px}
+.eyebrow{font-size:12px;letter-spacing:.14em;color:#6686a5;font-weight:700}.hero h1{font-size:25px;margin:9px 0 5px}.hero p{margin:0;color:#63758a;font-size:14px}
+.status{display:flex;align-items:center;gap:8px;margin-top:15px;font-size:12px;color:var(--muted)}.dot{width:8px;height:8px;border-radius:50%;background:#e5a75e}.dot.ok{background:#55b88a}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0 20px}.stat{background:#fff;border:1px solid var(--line);border-radius:15px;padding:12px 8px;text-align:center}.stat b{display:block;font-size:21px}.stat span{font-size:11px;color:var(--muted)}
+.panel{background:#fff;border:1px solid var(--line);border-radius:20px;padding:17px;margin:13px 0}.panel h2{font-size:16px;margin:0 0 13px}
+.team{display:grid;grid-template-columns:54px 1fr;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #f0f3f7}.team:first-of-type{border-top:0}.team strong{font-size:14px}.team select{width:100%;border:1px solid #dce5ee;background:#fbfdff;border-radius:11px;padding:11px;color:var(--ink);font-size:14px}
+.room{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-top:1px solid #f0f3f7}.room:first-of-type{border-top:0}.room span{font-size:14px}.chips{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}.chip{font-size:12px;background:#edf5fc;padding:5px 8px;border-radius:8px;color:#496b8a}
+.actions{display:flex;gap:8px;flex-wrap:wrap}.actions button{border:1px solid #dce5ee;background:#fff;border-radius:11px;padding:10px 13px;color:#52657a;font-size:12px}
+.note{font-size:12px;line-height:1.6;color:#8391a1}.error{background:#fff5f3;color:#a44b3d;padding:12px;border-radius:12px;font-size:13px;line-height:1.6}
+@media(max-width:420px){main{padding:16px 12px 36px}.hero h1{font-size:22px}.summary{gap:5px}.stat{padding:10px 4px}.stat b{font-size:19px}}
+</style>
+</head>
+<body>
+<main>
+<section class="hero">
+<div class="eyebrow">GRADUATION PERFORMANCE</div>
+<h1>리허설 팀 위치 현황</h1>
+<p>팀별 현재 위치를 확인하고 실시간으로 공유해 주세요.</p>
+<div class="status"><i class="dot" id="connectionDot"></i><span id="connectionText">연결 설정 확인 중</span></div>
+</section>
+<div class="summary" id="summary"></div>
+<section class="panel"><h2>팀별 위치 변경</h2><div id="teams"></div></section>
+<section class="panel"><h2>대기실별 현황</h2><div id="rooms"></div></section>
+<section class="panel">
+<h2>관리</h2>
+<div class="actions"><button id="completeBtn">전체 공연 완료</button><button id="resetBtn">전체 위치 초기화</button></div>
+<p class="note">팀 위치를 변경하면 같은 링크에 접속한 스태프 화면에도 반영됩니다. 실시간 공유를 위해 아래 Firebase 설정이 필요합니다.</p>
+<div id="setupMessage" class="error">아직 Firebase 연결 정보가 입력되지 않았습니다. index.html 안의 FIREBASE_CONFIG 값을 본인 프로젝트 정보로 바꿔야 실시간 공유가 작동합니다.</div>
+</section>
+</main>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+  projectId: "YOUR_PROJECT_ID",
+  appId: "YOUR_APP_ID"
+};
+const locations=["1차 대기실","2차 대기실","3차 대기실","122호 (무대)","공연 완료"];
+const initial=Object.fromEntries(Array.from({length:14},(_,i)=>[String(i+1),locations[0]]));
+const teamsEl=document.getElementById("teams"),roomsEl=document.getElementById("rooms");
+let state={...initial},db=null,connected=false;
+function render(){
+ const counts=locations.map(x=>Object.values(state).filter(v=>v===x).length);
+ document.getElementById("summary").innerHTML=counts.slice(0,4).map((n,i)=>`<div class="stat"><b>${n}</b><span>${locations[i].replace(" (무대)","")}</span></div>`).join("");
+ teamsEl.innerHTML=Array.from({length:14},(_,i)=>{let n=i+1;return `<div class="team"><strong>${n}팀</strong><select aria-label="${n}팀 위치" data-team="${n}">${locations.map(x=>`<option ${state[n]===x?"selected":""}>${x}</option>`).join("")}</select></div>`}).join("");
+ roomsEl.innerHTML=locations.map(loc=>{let names=Object.keys(state).filter(k=>state[k]===loc);return `<div class="room"><span>${loc}</span><div class="chips">${names.length?names.map(n=>`<b class="chip">${n}팀</b>`).join(""):'<small class="note">대기 팀 없음</small>'}</div></div>`}).join("");
+}
+function setConnection(ok,msg){connected=ok;document.getElementById("connectionDot").className=ok?"dot ok":"dot";document.getElementById("connectionText").textContent=msg;}
+teamsEl.addEventListener("change",e=>{let n=e.target.dataset.team;if(!n)return;state[n]=e.target.value;render();if(db)db.ref("rehearsal/teams").set(state);});
+document.getElementById("completeBtn").onclick=()=>{if(!confirm("모든 팀을 공연 완료로 변경할까요?"))return;Object.keys(state).forEach(k=>state[k]="공연 완료");render();if(db)db.ref("rehearsal/teams").set(state);};
+document.getElementById("resetBtn").onclick=()=>{if(!confirm("모든 팀을 1차 대기실로 초기화할까요?"))return;state={...initial};render();if(db)db.ref("rehearsal/teams").set(state);};
+render();
+const configured=FIREBASE_CONFIG.apiKey!=="YOUR_API_KEY"&&FIREBASE_CONFIG.projectId!=="YOUR_PROJECT_ID"&&FIREBASE_CONFIG.appId!=="YOUR_APP_ID";
+if(configured){
+ try{
+  firebase.initializeApp(FIREBASE_CONFIG);db=firebase.database();
+  firebase.auth().signInAnonymously().then(()=>{
+   const ref=db.ref("rehearsal/teams");
+   ref.on("value",snap=>{const val=snap.val();state=val?{...initial,...val}:{...initial};render();setConnection(true,"실시간 공유 연결됨");if(!val)ref.set(state);});
+  }).catch(err=>setConnection(false,"인증 연결 실패: "+err.message));
+ }catch(err){setConnection(false,"Firebase 설정을 확인해 주세요.");}
+}else{setConnection(false,"Firebase 설정 전 · 미리보기 모드");}
+</script>
+</body>
+</html>
